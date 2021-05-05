@@ -53,7 +53,6 @@ func getMongoDbData(machineStatus MachineStatus, machine string) MachineStatus {
 
 	for i := 0; i < len(status); i++ {
 		if status[i].Machine == machine {
-			fmt.Println(status[i].Machine)
 			machineStatus = status[i]
 			break
 		}

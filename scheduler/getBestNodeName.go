@@ -90,18 +90,19 @@ func decodeJsonDataToStruct(metrics *MetricResponse, resp *http.Response) {
 	}
 }
 
-func getSecondBestNode(node []Node) (string, error){
+func getSecondBestNode(nodes []Node) (string, error){
 	var machineStatus MachineStatus
-	//var nodeNames []string
-	//for _, n := range nodes {
-	//	nodeNames = append(nodeNames, n.Metadata.Name)
-	//}
-	//
+	var nodeNames []string
+	for _, n := range nodes {
+		nodeNames = append(nodeNames, n.Metadata.Name)
+		fmt.Println(n)
+	}
+
 	//for i := 0; i < len(nodeNames); i++ {
 	//	machineStatus = getMongoDbData(machineStatus, nodeNames[i])
 	//}
 	machineStatus = getMongoDbData(machineStatus, "shisui")
-	bestNode := machineStatus.Machine
+	bestNode := "minikube"
 
 	if bestNode == "" {
 		return "", errors.New("No node found")
@@ -111,7 +112,12 @@ func getSecondBestNode(node []Node) (string, error){
 }
 
 //func main() {
-//	var node []Node
-//	var bestNodeName, _ = getSecondBestNode(node)
-//	fmt.Printf(bestNodeName)
+//	var nodes []Node
+//	var nodeNames []string
+//	for _, n := range nodes {
+//		nodeNames = append(nodeNames, n.Metadata.Name)
+//	}
+//	fmt.Println(nodeNames)
+//	//var bestNodeName, _ = getSecondBestNode(nodes)
+//	//fmt.Println(bestNodeName)
 //}
