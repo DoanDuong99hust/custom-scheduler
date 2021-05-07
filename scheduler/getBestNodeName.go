@@ -92,17 +92,20 @@ func decodeJsonDataToStruct(metrics *MetricResponse, resp *http.Response) {
 
 func getSecondBestNode(nodes []Node) (string, error){
 	var machineStatus MachineStatus
-	var nodeNames []string
-	for _, n := range nodes {
-		nodeNames = append(nodeNames, n.Metadata.Name)
-		fmt.Println(n)
-	}
+	worker01 := getMongoDbData(machineStatus, "worker01")
+	worker02 := getMongoDbData(machineStatus, "worker02")
 
-	//for i := 0; i < len(nodeNames); i++ {
-	//	machineStatus = getMongoDbData(machineStatus, nodeNames[i])
-	//}
-	machineStatus = getMongoDbData(machineStatus, "shisui")
-	bestNode := "minikube"
+	nodeStatus := []MachineStatus{worker01,worker02}
+	min := worker01
+
+	for _, node := range nodeStatus {
+		nodeMemory := node.Cpu[1]
+		if nodeMemory <= min.Cpu[1] {
+			min = node
+		}
+	}
+	// machineStatus = getMongoDbData(machineStatus, "shisui")
+	bestNode := min.Machine
 
 	if bestNode == "" {
 		return "", errors.New("No node found")
@@ -111,13 +114,8 @@ func getSecondBestNode(nodes []Node) (string, error){
 	}
 }
 
-//func main() {
-//	var nodes []Node
-//	var nodeNames []string
-//	for _, n := range nodes {
-//		nodeNames = append(nodeNames, n.Metadata.Name)
-//	}
-//	fmt.Println(nodeNames)
-//	//var bestNodeName, _ = getSecondBestNode(nodes)
-//	//fmt.Println(bestNodeName)
-//}
+// func main() {
+// 	var nodes []Node
+// 	var bestNodeName, _ = getSecondBestNode(nodes)
+// 	fmt.Println(bestNodeName)
+// }
