@@ -20,8 +20,8 @@ type MachineStatus struct {
 	Cpu         []float64			`bson:"cpu,omitempty"`
 	Memory      []float64			`bson:"memory,omitempty"`
 	ReceiveNet  []float64			`bson:"receive-net,omitempty"`
-	TransmitNet []float64		`bson:"transmit-net,omitempty"`
-
+	TransmitNet []float64			`bson:"transmit-net,omitempty"`
+	FreeDisk	[]float64			`bson:"free_disk,omitempty"`
 }
 
 func getMongoDbData(machineStatus MachineStatus, machine string) MachineStatus {
