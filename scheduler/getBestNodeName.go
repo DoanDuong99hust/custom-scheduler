@@ -1,7 +1,13 @@
 package main
 
 import (
+	"bufio"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
+	"os"
+	"strconv"
 )
 
 // Struct for decoded JSON from HTTP response
@@ -21,35 +27,100 @@ type Result struct {
 }
 
 // Returns the name of the node with the best metric value
+func getBestNodeName(nodes []Node) (string, error) {
+	var nodeNames []string
+	for _, n := range nodes {
+		nodeNames = append(nodeNames, n.Metadata.Name)
+	}
 
-func getSecondBestNode(nodes []Node) (string, error){
-	var machineStatus MachineStatus
-	worker01 := getMongoDbData(machineStatus, "worker01")
-	worker02 := getMongoDbData(machineStatus, "worker02")
+	// Add prometheus domain
+	proDomain, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 
-	nodeStatus := []MachineStatus{worker01,worker02}
-	min := worker01
+	// Execute a query over the HTTP API to get the metric node_memory_MemAvailable
+	respName, err := http.Get("http://" + proDomain +"/api/v1/query?query=kubelet_node_name")
+	if err != nil {
+		fmt.Println(err)
+	}
+	// Decode the JSON body of the HTTP response into a struct
+	var metrics MetricResponse
+	decodeJsonDataToStruct(&metrics, respName)
 
-	for _, node := range nodeStatus {
-		nodeMemory := node.Cpu[1]
-		if (min.FreeDisk[1]/(1024*1024)) > 400 {
-			if nodeMemory <= min.Cpu[1] {
-				min = node
+
+	// Iterate through the metric results to find the node with the best value
+	max := 0
+	bestNode := ""
+	for _, m := range metrics.Data.Results {
+		// Print metric value for the node
+		fmt.Printf("Node name: %s\n", m.MetricInfo["instance"])
+		fmt.Printf("Value: %s\n\n", m.MetricValue[1])
+
+		// Convert string in metric results to an integer
+		metricValue, err := strconv.Atoi(m.MetricValue[1].(string))
+		if err != nil {
+			return "", err
+		}
+
+		if metricValue > max {
+			// Check if the node is in the list passed in (nodes the pod will fit on)
+			available := nodeAvailable(nodeNames, m.MetricInfo["instance"])
+			if available == true {
+				max = metricValue
+				bestNode = m.MetricInfo["instance"]
 			}
 		}
 	}
-	// machineStatus = getMongoDbData(machineStatus, "shisui")
-	bestNode := min.Machine
-
 	if bestNode == "" {
 		return "", errors.New("No node found")
 	} else {
 		return bestNode, nil
 	}
 }
+func nodeAvailable(nodeNames []string, name string) (result bool) {
+	for _, n := range nodeNames {
+		fmt.Println(n + ", ")
+		if name == n {
+			return true
+		}
+	}
+	return false
+}
+// Decode JSON data into a struct to get the metric values
+func decodeJsonDataToStruct(metrics *MetricResponse, resp *http.Response) {
+	decoder := json.NewDecoder(resp.Body)
+	err := decoder.Decode(metrics)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+func main() {
 
-// func main() {
-// 	var nodes []Node
-// 	var bestNodeName, _ = getSecondBestNode(nodes)
-// 	fmt.Println(bestNodeName)
-// }
+	//resp, err1 := http.Get("http://localhost:8080/api/v1/query?query=kubelet_node_name")
+	//if err1 != nil {
+	//	fmt.Println(err1)
+	//}
+
+	respMem, err2 := http.Get("http://localhost:8080/api/v1/query?query=node_memory_MemAvailable_bytes{job=\"node-exporter\"}/(1024*1024)")
+	if err2 != nil {
+		fmt.Println(err2)
+	}
+
+	//respCpu, err3 := http.Get("http://localhost:8080/api/v1/query?query=(sum (rate (container_cpu_usage_seconds_total{image!=\"\"}[1m])) by (instance))*100")
+	//if err3 != nil {
+	//	fmt.Println(err3)
+	//}
+	//
+	//respDisk, err4 := http.Get("http://localhost:8080/api/v1/query?query=node_filesystem_avail_bytes{mountpoint=\"/\",fstype=\"xfs\",job=\"node-exporter\"}")
+	//if err4 != nil {
+	//	fmt.Println(err4)
+	//}
+	var metrics MetricResponse
+	decodeJsonDataToStruct(&metrics, respMem)
+
+	for _, m := range metrics.Data.Results {
+		// Print metric value for the node
+		fmt.Printf("Node name: %s\n", m.MetricInfo["instance"])
+		fmt.Printf("Value: %s\n", m.MetricValue[1])
+	}
+
+}
