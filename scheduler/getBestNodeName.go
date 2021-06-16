@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	// "bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,10 +26,6 @@ type Result struct {
 	MetricValue []interface{}     `json:"value,omitempty"` //Index 0 is unix_time, index 1 is sample_value (metric value)
 }
 
-type Layer1 struct {
-	Status 		string		`json:"status,omitempty"`
-	Data		Data		`json:"data,omitempty"`
-}
 // Returns the name of the node with the best metric value
 func getBestNodeName(nodes []Node) (string, error) {
 	var nodeNames []string
@@ -38,11 +34,11 @@ func getBestNodeName(nodes []Node) (string, error) {
 	}
 
 	// Add prometheus domain
-	fmt.Print("Insert Prometheus Domain: ")
-	proDomain, _ := bufio.NewReader(os.Stdin).ReadString('/')
+	// fmt.Print("Insert Prometheus Domain: ")
+	// proDomain, _ := bufio.NewReader(os.Stdin).ReadString('/')
 
 	// Execute a query over the HTTP API to get the metric kubelet_node_name
-	respName, err := http.Get("http://" + proDomain + "/api/v1/query?query=kubelet_node_name")
+	respName, err := http.Get("http://localhost:8080/api/v1/query?query=kubelet_node_name")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -52,17 +48,18 @@ func getBestNodeName(nodes []Node) (string, error) {
 	decodeJsonDataToStruct(&nodeNameMetric, respName)
 
 	// Execute a query over the HTTP API to get the metric node_memory
-	respMem, err2 := http.Get("http://" + proDomain + "/api/v1/query?query=((avg_over_time(node_memory_MemTotal_bytes{job=\"node-exporter\"}[5m]) - avg_over_time(node_memory_MemFree_bytes[5m]) - avg_over_time(node_memory_Cached_bytes[5m]) - avg_over_time(node_memory_Buffers_bytes[5m])) / avg_over_time(node_memory_MemTotal_bytes[5m])) * 100")
+	// respMem, err2 := http.Get("http://localhost:8080/api/v1/query?query=((avg_over_time(node_memory_MemTotal_bytes{job=\"node-exporter\"}[5m]) - avg_over_time(node_memory_MemFree_bytes[5m]) - avg_over_time(node_memory_Cached_bytes[5m]) - avg_over_time(node_memory_Buffers_bytes[5m])) / avg_over_time(node_memory_MemTotal_bytes[5m])) * 100")
+	respMem, err2 := http.Get("http://localhost:8080/api/v1/query?query=((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100")
 	if err2 != nil {
 		fmt.Println(err2)
 	}
 
-	// Decode the JSON body of the HTTP response into a struct
+	// // Decode the JSON body of the HTTP response into a struct
 	var nodeMemMetric MetricResponse
 	decodeJsonDataToStruct(&nodeMemMetric, respMem)
 
 	// Execute a query over the HTTP API to get the metric node_cpu_seconds_total
-	respCpu, err3 := http.Get("http://"+proDomain+"/api/v1/query?query=100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100")
+	respCpu, err3 := http.Get("http://localhost:8080/api/v1/query?query=100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100")
 	if err3 != nil {
 		fmt.Println(err3)
 	}
@@ -71,7 +68,7 @@ func getBestNodeName(nodes []Node) (string, error) {
 	var nodeCpuMetric MetricResponse
 	decodeJsonDataToStruct(&nodeCpuMetric, respCpu)
 
-	respDisk, err4 := http.Get("http://"+proDomain+"/api/v1/query?query=(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024)")
+	respDisk, err4 := http.Get("http://localhost:8080/api/v1/query?query=(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024)")
 	if err4 != nil {
 		fmt.Println(err4)
 	}
@@ -81,24 +78,33 @@ func getBestNodeName(nodes []Node) (string, error) {
 	decodeJsonDataToStruct(&nodeDiskMetric, respDisk)
 
 	// Iterate through the metric results to find the node with the best value
-	max := 0
+	maxDisk := 36000.00
 	bestNode := ""
 	for _, m := range nodeDiskMetric.Data.Results {
 		// Print metric value for the node
 		fmt.Printf("Node name: %s\n", m.MetricInfo["instance"])
-		fmt.Printf("Value: %s\n\n", m.MetricValue[1])
+		fmt.Printf("Disk size Value (MB): %s\n\n", m.MetricValue[1])
 
 		// Convert string in metric results to an integer
-		metricValue, err := strconv.Atoi(m.MetricValue[1].(string))
+		memDataConvert := fmt.Sprintf("%v", m.MetricValue[1])
+		memData, err := strconv.ParseFloat(memDataConvert, 64)
 		if err != nil {
 			return "", err
 		}
 
-		if metricValue > max {
+		if memData < maxDisk {
 			// Check if the node is in the list passed in (nodes the pod will fit on)
+			switch m.MetricInfo["instance"] {
+			case "10.233.108.7:9100":
+				m.MetricInfo["instance"] = "node6"
+			case "10.233.92.2:9100":
+				m.MetricInfo["instance"] = "node3"
+			case "10.233.96.1:9100":
+				m.MetricInfo["instance"] = "node2"
+			}
 			available := nodeAvailable(nodeNames, m.MetricInfo["instance"])
 			if available == true {
-				max = metricValue
+				maxDisk = memData
 				bestNode = m.MetricInfo["instance"]
 			}
 		}
@@ -122,9 +128,7 @@ func nodeAvailable(nodeNames []string, name string) (result bool) {
 // Decode JSON data into a struct to get the metric values
 func decodeJsonDataToStruct(metrics *MetricResponse, resp *http.Response) {
 	decoder := json.NewDecoder(resp.Body)
-	fmt.Println(decoder)
 	err := decoder.Decode(metrics)
-	fmt.Println(err)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

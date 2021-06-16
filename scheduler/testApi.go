@@ -50,19 +50,19 @@ func main() {
 	// NewReader := bufio.NewReader(os.Stdin)
 	// fmt.Print("Insert Prometheus Domain: ")
 	// promDomain,_ := NewReader.ReadString('/')
-	// respCpu, err3 := http.Get("http://localhost:8080/api/v1/query?query=100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100")
-	// if err3 != nil {
-	// 	fmt.Println(err3)
-	// }
-
-	respMem, err2 := http.Get("http://localhost:8080/api/v1/query?query=node_memory_MemAvailable_bytes{job=\"node-exporter\"}/(1024*1024)")
-	if err2 != nil {
-		fmt.Println(err2)
+	respCpu, err3 := http.Get("http://localhost:8080/api/v1/query?query=((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100")
+	if err3 != nil {
+		fmt.Println(err3)
 	}
+
+	// respMem, err2 := http.Get("http://localhost:8080/api/v1/query?query=(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024)")
+	// if err2 != nil {
+	// 	fmt.Println(err2)
+	// }
 	
 	var metrics MetricResponseTest
-	decodeJsonDataToStructTest(&metrics, respMem)
-	
+	decodeJsonDataToStructTest(&metrics,respCpu)
+	bestNode := ""
 	for _, m := range metrics.Data.Results {
 		// Print metric value for the node
 		fmt.Printf("Node name: %s\n", m.MetricInfo["instance"])
@@ -72,9 +72,19 @@ func main() {
 		if err != nil {
 			fmt.Println(err) 
 		}
-		fmt.Println(metricValue-100)
+		if metricValue > 3000.0 {
+			switch m.MetricInfo["instance"] {
+			case "10.233.108.7:9100":
+				m.MetricInfo["instance"] = "node6"
+			case "10.233.92.2:9100":
+				m.MetricInfo["instance"] = "node3"
+			case "10.233.96.1:9100":
+				m.MetricInfo["instance"] = "node2"
+			}
+			bestNode = m.MetricInfo["instance"]
+		}
 	}
-	
+	fmt.Println(bestNode)
 	file,_:= json.MarshalIndent(metrics," ", " ")
 	_ = ioutil.WriteFile("nodeCpu.json", file, 0644)
 }
