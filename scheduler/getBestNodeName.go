@@ -39,7 +39,7 @@ func getBestNodeName(nodes []Node) (string, error) {
 
 	// Add prometheus domain
 	fmt.Print("Insert Prometheus Domain: ")
-	proDomain, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	proDomain, _ := bufio.NewReader(os.Stdin).ReadString('/')
 
 	// Execute a query over the HTTP API to get the metric kubelet_node_name
 	respName, err := http.Get("http://" + proDomain + "/api/v1/query?query=kubelet_node_name")
@@ -62,7 +62,7 @@ func getBestNodeName(nodes []Node) (string, error) {
 	decodeJsonDataToStruct(&nodeMemMetric, respMem)
 
 	// Execute a query over the HTTP API to get the metric node_cpu_seconds_total
-	respCpu, err3 := http.Get("http://"+proDomain+"/api/v1/query?query=100 - (avg by (instance, job) (irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\"}[10m])) * 100)")
+	respCpu, err3 := http.Get("http://"+proDomain+"/api/v1/query?query=100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100")
 	if err3 != nil {
 		fmt.Println(err3)
 	}
