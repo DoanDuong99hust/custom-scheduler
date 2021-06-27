@@ -124,3 +124,19 @@ type Metadata struct {
 	Annotations     map[string]string `json:"annotations"`
 	Uid             string            `json:"uid"`
 }
+
+// Struct for decoded JSON from HTTP response
+type MetricResponse struct {
+	Data Data `json:"data,omitempty"`
+}
+
+type Data struct {
+	Results []Result `json:"result,omitempty"`
+}
+
+// Idea to use interface for metric values (which have different types) from
+// https://stackoverflow.com/questions/38861295/how-to-parse-json-arrays-with-two-different-data-types-into-a-struct-in-go-lang
+type Result struct {
+	MetricInfo  map[string]string `json:"metric,omitempty"`
+	MetricValue []interface{}     `json:"value,omitempty"` //Index 0 is unix_time, index 1 is sample_value (metric value)
+}

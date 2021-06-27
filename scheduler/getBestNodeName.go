@@ -10,22 +10,6 @@ import (
 	"strconv"
 )
 
-// Struct for decoded JSON from HTTP response
-type MetricResponse struct {
-	Data Data `json:"data,omitempty"`
-}
-
-type Data struct {
-	Results []Result `json:"result,omitempty"`
-}
-
-// Idea to use interface for metric values (which have different types) from
-// https://stackoverflow.com/questions/38861295/how-to-parse-json-arrays-with-two-different-data-types-into-a-struct-in-go-lang
-type Result struct {
-	MetricInfo  map[string]string `json:"metric,omitempty"`
-	MetricValue []interface{}     `json:"value,omitempty"` //Index 0 is unix_time, index 1 is sample_value (metric value)
-}
-
 // Returns the name of the node with the best metric value
 func getBestNodeName(nodes []Node) (string, error) {
 	var nodeNames []string
@@ -68,7 +52,7 @@ func getBestNodeName(nodes []Node) (string, error) {
 	var nodeCpuMetric MetricResponse
 	decodeJsonDataToStruct(&nodeCpuMetric, respCpu)
 
-	respDisk, err4 := http.Get("http://localhost:8080/api/v1/query?query=(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024)")
+	respDisk, err4 := http.Get("http://localhost:8080/api/v1/query?query=(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024*1024)")
 	if err4 != nil {
 		fmt.Println(err4)
 	}
@@ -92,17 +76,20 @@ func getBestNodeName(nodes []Node) (string, error) {
 			return "", err
 		}
 
+		switch m.MetricInfo["instance"] {
+		case "10.233.108.7:9100":
+			m.MetricInfo["instance"] = "node6"
+		case "10.233.92.2:9100":
+			m.MetricInfo["instance"] = "node3"
+		case "10.233.96.1:9100":
+			m.MetricInfo["instance"] = "node2"
+		}
+
 		if memData < maxDisk {
 			// Check if the node is in the list passed in (nodes the pod will fit on)
-			switch m.MetricInfo["instance"] {
-			case "10.233.108.7:9100":
-				m.MetricInfo["instance"] = "node6"
-			case "10.233.92.2:9100":
-				m.MetricInfo["instance"] = "node3"
-			case "10.233.96.1:9100":
-				m.MetricInfo["instance"] = "node2"
-			}
 			available := nodeAvailable(nodeNames, m.MetricInfo["instance"])
+			fmt.Println(m.MetricInfo["instance"])
+			fmt.Println("available is ", available)
 			if available == true {
 				maxDisk = memData
 				bestNode = m.MetricInfo["instance"]
