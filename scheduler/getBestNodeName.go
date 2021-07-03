@@ -10,6 +10,16 @@ import (
 	"strconv"
 )
 
+func getHttpApi(domain string, query string) MetricResponse {
+	resp, err := http.Get("http://"+domain+"api/v1/query?query="+query+"")
+	if err != nil {
+		fmt.Println(err)
+	}
+	var metrics MetricResponse
+	decodeJsonDataToStruct(&metrics, resp)
+
+	return metrics
+}
 // Returns the name of the node with the best metric value
 func getBestNodeName(nodes []Node) (string, error) {
 	var nodeNames []string
@@ -21,48 +31,23 @@ func getBestNodeName(nodes []Node) (string, error) {
 	// fmt.Print("Insert Prometheus Domain: ")
 	// proDomain, _ := bufio.NewReader(os.Stdin).ReadString('/')
 
-	// Execute a query over the HTTP API to get the metric kubelet_node_name
-	respName, err := http.Get("http://localhost:8080/api/v1/query?query=kubelet_node_name")
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// Decode the JSON body of the HTTP response into a struct
-	var nodeNameMetric MetricResponse
-	decodeJsonDataToStruct(&nodeNameMetric, respName)
-
-	// Execute a query over the HTTP API to get the metric node_memory
-	// respMem, err2 := http.Get("http://localhost:8080/api/v1/query?query=((avg_over_time(node_memory_MemTotal_bytes{job=\"node-exporter\"}[5m]) - avg_over_time(node_memory_MemFree_bytes[5m]) - avg_over_time(node_memory_Cached_bytes[5m]) - avg_over_time(node_memory_Buffers_bytes[5m])) / avg_over_time(node_memory_MemTotal_bytes[5m])) * 100")
-	respMem, err2 := http.Get("http://localhost:8080/api/v1/query?query=((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100")
-	if err2 != nil {
-		fmt.Println(err2)
-	}
-
-	// // Decode the JSON body of the HTTP response into a struct
 	var nodeMemMetric MetricResponse
-	decodeJsonDataToStruct(&nodeMemMetric, respMem)
+	nodeMemMetric = getHttpApi("localhost:2505/", "((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100")
 
-	// Execute a query over the HTTP API to get the metric node_cpu_seconds_total
-	respCpu, err3 := http.Get("http://localhost:8080/api/v1/query?query=100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100")
-	if err3 != nil {
-		fmt.Println(err3)
-	}
-
-	// Decode the JSON body of the HTTP response into a struct
 	var nodeCpuMetric MetricResponse
-	decodeJsonDataToStruct(&nodeCpuMetric, respCpu)
+	nodeCpuMetric = getHttpApi("localhost:2505/", "100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100")
 
-	respDisk, err4 := http.Get("http://localhost:8080/api/v1/query?query=(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024*1024)")
-	if err4 != nil {
-		fmt.Println(err4)
-	}
-
-	// Decode the JSON body of the HTTP response into a struct
 	var nodeDiskMetric MetricResponse
-	decodeJsonDataToStruct(&nodeDiskMetric, respDisk)
+	nodeDiskMetric = getHttpApi("localhost:2505/", "(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024*1024)")
+
+	var nodeReceiveNet MetricResponse
+	nodeReceiveNet = getHttpApi("localhost:2505/", "irate(node_network_receive_bytes_total{device=\"eth0\"}[5m])/1024")
+
+	var nodeTransmitNet MetricResponse
+	nodeTransmitNet = getHttpApi("localhost:2505/", "irate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])/1024")
 
 	// Iterate through the metric results to find the node with the best value
-	maxDisk := 36000.00
+	maxDisk := 0
 	bestNode := ""
 	for _, m := range nodeDiskMetric.Data.Results {
 		// Print metric value for the node
@@ -77,12 +62,10 @@ func getBestNodeName(nodes []Node) (string, error) {
 		}
 
 		switch m.MetricInfo["instance"] {
-		case "10.233.108.7:9100":
+		case "10.47.0.10:9100":
+			m.MetricInfo["instance"] = "node7"
+		case "10.44.0.8:9100":
 			m.MetricInfo["instance"] = "node6"
-		case "10.233.92.2:9100":
-			m.MetricInfo["instance"] = "node3"
-		case "10.233.96.1:9100":
-			m.MetricInfo["instance"] = "node2"
 		}
 
 		if memData < maxDisk {
@@ -122,46 +105,3 @@ func decodeJsonDataToStruct(metrics *MetricResponse, resp *http.Response) {
 	}
 }
 
-
-// func main() {
-	// fmt.Print("Insert Prometheus Domain: ")
-	// proDomain, _:= bufio.NewReader(os.Stdin).ReadString('/')
-
-	// resp, err1 := http.Get("http://localhost:8080/api/v1/query?query=kubelet_node_name")
-	// if err1 != nil {
-	// 	fmt.Println(err1)
-	// }
-
-	// respMem, err2 := http.Get("http://localhost:8080/api/v1/query?query=node_memory_MemAvailable_bytes{job=\"node-exporter\"}/(1024*1024)")
-	// if err2 != nil {
-	// 	fmt.Println(err2)
-	// }
-
-	// respCpu, err3 := http.Get("http://localhost:8080/api/v1/query?query=100 - (avg by (instance, job) (irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\"}[10m])) * 100)")
-	// if err3 != nil {
-	// 	fmt.Println(err3)
-	// }
-	
-	// respDisk, err4 := http.Get("http://localhost:8080/api/v1/query?query=node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"}")
-	// if err4 != nil {
-	// 	fmt.Println(err4)
-	// }
-
-	// var nodeNameMetric MetricResponse
-	// decodeJsonDataToStruct(&nodeNameMetric, resp)
-
-	// for _, m := range nodeNameMetric.Data.Results{
-	// 	fmt.Printf("Node name: %s\n", m.MetricInfo["instance"])
-	// 	fmt.Printf("Value: %s\n", m.MetricValue[1])
-	// }
-
-	// var metrics MetricResponse
-	// decodeJsonDataToStruct(&metrics, respCpu)
-
-	// for _, m := range metrics.Data.Results {
-	// 	// Print metric value for the node
-	// 	fmt.Printf("Node name: %s\n", m.MetricInfo["instance"])
-	// 	fmt.Printf("Value: %s\n", m.MetricValue[1])
-	// }
-
-// }

@@ -135,15 +135,15 @@ func saveData(
 
 
 }
-func main()  {
-	var data MachineStatus
-	datam := getMachineData(data, "shisui", "localhost","test-prometheus","status").Memory[1]
+//func main()  {
+//	var data MachineStatus
+//	datam := getMachineData(data, "shisui", "localhost","test-prometheus","status").Memory[1]
 
-	fmt.Println(datam)
+//	fmt.Println(datam)
 
-	saveData("localhost", "test-prometheus", "free_disk", "(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024*1024)")
-	saveData("localhost", "test-prometheus", "cpu_stat", "100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\"}[10m])*100")
-	saveData("localhost", "test-prometheus", "memory_stat", "((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100")
-	saveData("localhost", "test-prometheus", "network_receive_stat", "irate(node_network_receive_bytes_total{device=\"eth0\"}[5m])/1024")
-	saveData("localhost", "test-prometheus", "network_transmit_stat", "irate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])/1024")
+//	saveData("localhost", "test-prometheus", "free_disk", "(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024*1024)")
+//	saveData("localhost", "test-prometheus", "cpu_stat", "100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\"}[10m])*100")
+//	saveData("localhost", "test-prometheus", "memory_stat", "((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100")
+//	saveData("localhost", "test-prometheus", "network_receive_stat", "irate(node_network_receive_bytes_total{device=\"eth0\"}[5m])/1024")
+//	saveData("localhost", "test-prometheus", "network_transmit_stat", "irate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])/1024")
 }
