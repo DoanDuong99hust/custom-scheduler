@@ -146,4 +146,4 @@ func saveData(
 //	saveData("localhost", "test-prometheus", "memory_stat", "((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100")
 //	saveData("localhost", "test-prometheus", "network_receive_stat", "irate(node_network_receive_bytes_total{device=\"eth0\"}[5m])/1024")
 //	saveData("localhost", "test-prometheus", "network_transmit_stat", "irate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])/1024")
-}
+//}

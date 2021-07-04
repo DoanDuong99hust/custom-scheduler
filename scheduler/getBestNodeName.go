@@ -10,12 +10,11 @@ import (
 	"strconv"
 )
 
-func getHttpApi(domain string, query string) MetricResponse {
+func getHttpApi(domain string, query string, metrics MetricResponse) MetricResponse {
 	resp, err := http.Get("http://"+domain+"api/v1/query?query="+query+"")
 	if err != nil {
 		fmt.Println(err)
 	}
-	var metrics MetricResponse
 	decodeJsonDataToStruct(&metrics, resp)
 
 	return metrics
@@ -32,22 +31,22 @@ func getBestNodeName(nodes []Node) (string, error) {
 	// proDomain, _ := bufio.NewReader(os.Stdin).ReadString('/')
 
 	var nodeMemMetric MetricResponse
-	nodeMemMetric = getHttpApi("localhost:2505/", "((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100")
+	getHttpApi("localhost:2505/", "((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100", nodeMemMetric)
 
 	var nodeCpuMetric MetricResponse
-	nodeCpuMetric = getHttpApi("localhost:2505/", "100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100")
+	getHttpApi("localhost:2505/", "100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100", nodeCpuMetric)
 
 	var nodeDiskMetric MetricResponse
-	nodeDiskMetric = getHttpApi("localhost:2505/", "(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024*1024)")
+	getHttpApi("localhost:2505/", "(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024*1024)", nodeDiskMetric)
 
 	var nodeReceiveNet MetricResponse
-	nodeReceiveNet = getHttpApi("localhost:2505/", "irate(node_network_receive_bytes_total{device=\"eth0\"}[5m])/1024")
+	getHttpApi("localhost:2505/", "irate(node_network_receive_bytes_total{device=\"eth0\"}[5m])/1024", nodeReceiveNet)
 
 	var nodeTransmitNet MetricResponse
-	nodeTransmitNet = getHttpApi("localhost:2505/", "irate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])/1024")
+	getHttpApi("localhost:2505/", "irate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])/1024", nodeTransmitNet)
 
 	// Iterate through the metric results to find the node with the best value
-	maxDisk := 0
+	maxDisk := 0.0
 	bestNode := ""
 	for _, m := range nodeDiskMetric.Data.Results {
 		// Print metric value for the node
