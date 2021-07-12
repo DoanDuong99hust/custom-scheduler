@@ -8,10 +8,11 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	// "os/exec"
 )
 
 func getHttpApi(domain string, query string, metrics MetricResponse) MetricResponse {
-	resp, err := http.Get("http://"+domain+"api/v1/query?query="+query+"")
+	resp, err := http.Get("http://" + domain + "api/v1/query?query=" + query + "")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -19,6 +20,7 @@ func getHttpApi(domain string, query string, metrics MetricResponse) MetricRespo
 
 	return metrics
 }
+
 // Returns the name of the node with the best metric value
 func getBestNodeName(nodes []Node) (string, error) {
 	var nodeNames []string
@@ -30,54 +32,60 @@ func getBestNodeName(nodes []Node) (string, error) {
 	// fmt.Print("Insert Prometheus Domain: ")
 	// proDomain, _ := bufio.NewReader(os.Stdin).ReadString('/')
 
-	var nodeMemMetric MetricResponse
-	getHttpApi("localhost:2505/", "((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100", nodeMemMetric)
+	// var nodeMemMetric MetricResponse
+	// nodeMemMetric = getHttpApi("localhost:4040/", "((node_memory_MemTotal_bytes{job=\"node-exporter\"}-node_memory_MemAvailable_bytes{job=\"node-exporter\"})/(node_memory_MemTotal_bytes{job=\"node-exporter\"}))*100", nodeMemMetric)
 
-	var nodeCpuMetric MetricResponse
-	getHttpApi("localhost:2505/", "100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100", nodeCpuMetric)
+	// var nodeCpuMetric MetricResponse
+	// nodeCpuMetric = getHttpApi("localhost:4040/", "100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100", nodeCpuMetric)
 
 	var nodeDiskMetric MetricResponse
-	getHttpApi("localhost:2505/", "(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node-exporter\"})/(1024*1024*1024)", nodeDiskMetric)
+	nodeDiskMetric = getHttpApi("localhost:8080/", "(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node_exporter_metrics\"})/(1024*1024*1024)", nodeDiskMetric)
 
 	var nodeReceiveNet MetricResponse
-	getHttpApi("localhost:2505/", "irate(node_network_receive_bytes_total{device=\"eth0\"}[5m])/1024", nodeReceiveNet)
+	nodeReceiveNet = getHttpApi("localhost:8080/", "irate(node_network_receive_bytes_total{device=\"enp0s3\",instance=\"192.168.101.192:9100\"}[5m])/(1024*1024)", nodeReceiveNet)
 
-	var nodeTransmitNet MetricResponse
-	getHttpApi("localhost:2505/", "irate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])/1024", nodeTransmitNet)
+	// var nodeTransmitNet MetricResponse
+	// nodeTransmitNet = getHttpApi("localhost:2505/", "irate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])/1024", nodeTransmitNet)
 
 	// Iterate through the metric results to find the node with the best value
 	maxDisk := 0.0
 	bestNode := ""
-	for _, m := range nodeDiskMetric.Data.Results {
-		// Print metric value for the node
-		fmt.Printf("Node name: %s\n", m.MetricInfo["instance"])
-		fmt.Printf("Disk size Value (MB): %s\n\n", m.MetricValue[1])
+	bandwidth := convertStringToFloat(nodeReceiveNet)
+	if bandwidth >= 1.15 {
+		for _, m := range nodeDiskMetric.Data.Results {
+			// Print metric value for the node
+			fmt.Printf("Node name: %s\n", m.MetricInfo["instance"])
+			fmt.Printf("Disk size Value (GB): %s\n\n", m.MetricValue[1])
 
-		// Convert string in metric results to an integer
-		memDataConvert := fmt.Sprintf("%v", m.MetricValue[1])
-		memData, err := strconv.ParseFloat(memDataConvert, 64)
-		if err != nil {
-			return "", err
-		}
+			// Convert string in metric results to an integer
+			memDataConvert := fmt.Sprintf("%v", m.MetricValue[1])
+			memData, err := strconv.ParseFloat(memDataConvert, 64)
+			if err != nil {
+				return "", err
+			}
 
-		switch m.MetricInfo["instance"] {
-		case "10.47.0.10:9100":
-			m.MetricInfo["instance"] = "node7"
-		case "10.44.0.8:9100":
-			m.MetricInfo["instance"] = "node6"
-		}
+			switch m.MetricInfo["instance"] {
+			case "192.168.101.191:9100":
+				m.MetricInfo["instance"] = "edge"
+			case "192.168.101.192:9100":
+				m.MetricInfo["instance"] = "server"
+			}
 
-		if memData < maxDisk {
-			// Check if the node is in the list passed in (nodes the pod will fit on)
-			available := nodeAvailable(nodeNames, m.MetricInfo["instance"])
-			fmt.Println(m.MetricInfo["instance"])
-			fmt.Println("available is ", available)
-			if available == true {
-				maxDisk = memData
-				bestNode = m.MetricInfo["instance"]
+			if memData > maxDisk {
+				// Check if the node is in the list passed in (nodes the pod will fit on)
+				available := nodeAvailable(nodeNames, m.MetricInfo["instance"])
+				fmt.Println(m.MetricInfo["instance"])
+				fmt.Println("available is ", available)
+				if available == true {
+					maxDisk = memData
+					bestNode = m.MetricInfo["instance"]
+				}
 			}
 		}
+	} else {
+		bestNode = "edge"
 	}
+
 	if bestNode == "" {
 		return "", errors.New("No node found")
 	} else {
@@ -104,3 +112,14 @@ func decodeJsonDataToStruct(metrics *MetricResponse, resp *http.Response) {
 	}
 }
 
+func convertStringToFloat(metric MetricResponse) float64 {
+	for _, result := range metric.Data.Results {
+		rawData := fmt.Sprintf("%v", result.MetricValue[1])
+		convertedData, err := strconv.ParseFloat(rawData, 64)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return convertedData
+	}
+	return 0.0
+}
