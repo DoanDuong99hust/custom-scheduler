@@ -42,7 +42,7 @@ func getBestNodeName(nodes []Node) (string, error) {
 	nodeDiskMetric = getHttpApi("localhost:8080/", "(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node_exporter_metrics\"})/(1024*1024*1024)", nodeDiskMetric)
 
 	var nodeReceiveNet MetricResponse
-	nodeReceiveNet = getHttpApi("localhost:8080/", "irate(node_network_receive_bytes_total{device=\"enp0s3\",instance=\"192.168.101.192:9100\"}[5m])/(1024*1024)", nodeReceiveNet)
+	nodeReceiveNet = getHttpApi("localhost:8080/", "rate(node_network_receive_bytes_total{device=\"enp0s3\",instance=\"192.168.101.192:9100\"}[1m])/(1024*1024)", nodeReceiveNet)
 
 	// var nodeTransmitNet MetricResponse
 	// nodeTransmitNet = getHttpApi("localhost:2505/", "irate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])/1024", nodeTransmitNet)
@@ -51,7 +51,7 @@ func getBestNodeName(nodes []Node) (string, error) {
 	maxDisk := 0.0
 	bestNode := ""
 	bandwidth := convertStringToFloat(nodeReceiveNet)
-	if bandwidth >= 1.15 {
+	if bandwidth >= 0.87 {
 		for _, m := range nodeDiskMetric.Data.Results {
 			// Print metric value for the node
 			fmt.Printf("Node name: %s\n", m.MetricInfo["instance"])
