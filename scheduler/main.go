@@ -25,14 +25,14 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
-	
+	//"time"
 )
 
 // Modified scheduler name
 const schedulerName = "customScheduler"
+const THRESHOLD = 0.87
 
-func deployment(service string, threshold float64 ) (float64, float64) {
+func deployment(service string, threshold float64) (float64, float64) {
 	// lay thong so bang thong
 	// neu bang thong k dat yeu cau se goi script
 	var nodeReceiveNet MetricResponse
@@ -64,7 +64,7 @@ func main() {
 
 	doneChan := make(chan struct{})
 	var wg sync.WaitGroup
-	
+
 	fmt.Println("b1")
 	wg.Add(1)
 	go monitorUnscheduledPods(doneChan, &wg)
@@ -78,65 +78,57 @@ func main() {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
 	fmt.Println("b4")
-	
-	bandwidth,threshold := deployment("Decode", 0.87)
+
+	bandwidth, threshold := deployment("Decode", THRESHOLD)
 	fmt.Println(bandwidth)
 	fmt.Println("b5")
-	
-	if bandwidth < threshold { 
-		preInstant := threshold
-		for {
-			var nodeReceiveNet MetricResponse
-			nodeReceiveNet = getHttpApi("localhost:8080/", "rate(node_network_receive_bytes_total{device=\"enp0s3\",instance=\"192.168.101.192:9100\"}[1m])/(1024*1024)", nodeReceiveNet)
-			instantBw := convertStringToFloat(nodeReceiveNet)
 
-			//fmt.Println("Previous Bandwidth: ", bandwidth)
-			//fmt.Println("Instant Bandwidth: ", instantBw)
-			//fmt.Println("------------------")
-			if instantBw >=threshold {
-				if instantBw > preInstant {
-				        fmt.Println("Previous Bandwidth: ", preInstant)
-				        fmt.Println("Instant Bandwidth: ", instantBw)
-				     
-					deployment("Decode", threshold)
-					fmt.Println("-------------------")
-				} else {
-					continue
-				}	
-			} else if instantBw < threshold {
-				if instantBw < preInstant {
-				        fmt.Println("Previous Bandwidth: ", preInstant)
-				        fmt.Println("Instant Bandwidth: ", instantBw)
-				        
-					deployment("Decode", threshold)
+	preBandwidth := bandwidth
+	for {
+		var nodeReceiveNet MetricResponse
+		nodeReceiveNet = getHttpApi("localhost:8080/", "rate(node_network_receive_bytes_total{device=\"enp0s3\",instance=\"192.168.101.192:9100\"}[1m])/(1024*1024)", nodeReceiveNet)
+		instantBw := convertStringToFloat(nodeReceiveNet)
+
+		if preBandwidth < threshold {
+			if instantBw >= threshold {
+				if preBandwidth < threshold {
+					fmt.Println("Previous Bandwidth: ", preBandwidth)
+					fmt.Println("Instant Bandwidth: ", instantBw)
+					deployment("Decode", THRESHOLD)
 					fmt.Println("-------------------")
 				} else {
 					continue
 				}
-			} 
-			preInstant = instantBw
-			time.Sleep(30)
-
-		}
-	} else {
-		preInstant := threshold
-		for {
-			var nodeReceiveNet MetricResponse
-			nodeReceiveNet = getHttpApi("localhost:8080/", "rate(node_network_receive_bytes_total{device=\"enp0s3\",instance=\"192.168.101.192:9100\"}[1m])/(1024*1024)", nodeReceiveNet)
-			instantBw := convertStringToFloat(nodeReceiveNet)
-			if instantBw < preInstant {
-		                fmt.Println("Previous Bandwidth: ", bandwidth)
-		                fmt.Println("Instant Bandwidth: ", instantBw)
-		                fmt.Println("---------")
-				deployment("Decode", threshold)
-			} else {
-				//fmt.Println("continue...")
-				continue
+			} else { // instantBw < threshold
+				if preBandwidth >= threshold {
+					fmt.Println("Previous Bandwidth: ", preBandwidth)
+					fmt.Println("Instant Bandwidth: ", instantBw)
+					deployment("Decode", THRESHOLD)
+					fmt.Println("-------------------")
+				} else {
+					continue
+				}
 			}
-			preInstant = instantBw
-			time.Sleep(30)
-
+		} else { // bandwidth >= threshold
+			if instantBw < threshold {
+				if preBandwidth >= threshold {
+					fmt.Println("Previous Bandwidth: ", preBandwidth)
+					fmt.Println("Instant Bandwidth: ", instantBw)
+					deployment("Decode", THRESHOLD)
+					fmt.Println("-------------------")
+				} else {
+					if preBandwidth < threshold {
+						fmt.Println("Previous Bandwidth: ", preBandwidth)
+						fmt.Println("Instant Bandwidth: ", instantBw)
+						deployment("Decode", THRESHOLD)
+						fmt.Println("-------------------")
+					} else {
+						continue
+					}
+				}
+			}
 		}
+		preBandwidth = instantBw
 	}
 
 	// for {
