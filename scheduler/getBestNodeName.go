@@ -1,25 +1,17 @@
 package main
 
 import (
+	functions "customScheduler/scheduler/functions"
 	// "bufio"
-	"encoding/json"
+	//"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"os"
+	//"net/http"
+	//"os"
 	"strconv"
 	// "os/exec"
 )
 
-func getHttpApi(domain string, query string, metrics MetricResponse) MetricResponse {
-	resp, err := http.Get("http://" + domain + "api/v1/query?query=" + query + "")
-	if err != nil {
-		fmt.Println(err)
-	}
-	decodeJsonDataToStruct(&metrics, resp)
-
-	return metrics
-}
 
 // Returns the name of the node with the best metric value
 func getBestNodeName(nodes []Node) (string, error) {
@@ -38,11 +30,11 @@ func getBestNodeName(nodes []Node) (string, error) {
 	// var nodeCpuMetric MetricResponse
 	// nodeCpuMetric = getHttpApi("localhost:4040/", "100-irate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\",cpu=\"1\"}[10m])*100", nodeCpuMetric)
 
-	var nodeDiskMetric MetricResponse
-	nodeDiskMetric = getHttpApi("localhost:8080/", "(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node_exporter_metrics\"})/(1024*1024*1024)", nodeDiskMetric)
+	var nodeDiskMetric functions.MetricResponse
+	nodeDiskMetric = functions.GetHttpApi("localhost:8080/", "(node_filesystem_avail_bytes{mountpoint=\"/\",job=\"node_exporter_metrics\"})/(1024*1024*1024)", nodeDiskMetric)
 
-	var nodeReceiveNet MetricResponse
-	nodeReceiveNet = getHttpApi("localhost:8080/", "rate(node_network_receive_bytes_total{device=\"enp0s3\",instance=\"192.168.101.192:9100\"}[1m])/(1024*1024)", nodeReceiveNet)
+	var nodeReceiveNet functions.MetricResponse
+	nodeReceiveNet = functions.GetHttpApi("localhost:8080/", "rate(node_network_receive_bytes_total{device=\"enp0s3\",instance=\"192.168.101.192:9100\"}[1m])/(1024*1024)", nodeReceiveNet)
 
 	// var nodeTransmitNet MetricResponse
 	// nodeTransmitNet = getHttpApi("localhost:2505/", "irate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])/1024", nodeTransmitNet)
@@ -50,7 +42,7 @@ func getBestNodeName(nodes []Node) (string, error) {
 	// Iterate through the metric results to find the node with the best value
 	maxDisk := 0.0
 	bestNode := ""
-	bandwidth := convertStringToFloat(nodeReceiveNet)
+	bandwidth := functions.ConvertStringToFloat(nodeReceiveNet)
 	if bandwidth >= 0.87 {
 		for _, m := range nodeDiskMetric.Data.Results {
 			// Print metric value for the node
@@ -103,23 +95,4 @@ func nodeAvailable(nodeNames []string, name string) (result bool) {
 }
 
 // Decode JSON data into a struct to get the metric values
-func decodeJsonDataToStruct(metrics *MetricResponse, resp *http.Response) {
-	decoder := json.NewDecoder(resp.Body)
-	err := decoder.Decode(metrics)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
 
-func convertStringToFloat(metric MetricResponse) float64 {
-	for _, result := range metric.Data.Results {
-		rawData := fmt.Sprintf("%v", result.MetricValue[1])
-		convertedData, err := strconv.ParseFloat(rawData, 64)
-		if err != nil {
-			fmt.Println(err)
-		}
-		return convertedData
-	}
-	return 0.0
-}
