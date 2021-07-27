@@ -2,16 +2,17 @@ package main
 
 import (
 	functions "customScheduler/scheduler/functions"
+	"strings"
 	// "bufio"
 	//"encoding/json"
 	"errors"
 	"fmt"
+
 	//"net/http"
 	//"os"
 	"strconv"
 	// "os/exec"
 )
-
 
 // Returns the name of the node with the best metric value
 func getBestNodeName(nodes []Node) (string, error) {
@@ -42,8 +43,36 @@ func getBestNodeName(nodes []Node) (string, error) {
 	// Iterate through the metric results to find the node with the best value
 	maxDisk := 0.0
 	bestNode := ""
+	var serviceArray []string
 	bandwidth := functions.ConvertStringToFloat(nodeReceiveNet)
-	if bandwidth >= 0.87 {
+	serviceThreshold := 0.0
+	_,_,podList := getUnscheduledPods()
+	for _, pod := range podList.Items {
+		index := strings.Split(pod.Metadata.Name, "-")
+		podServiceName := index[0]
+		if podServiceName == "decode" || 
+		podServiceName == "density" || 
+		podServiceName == "nginx" ||
+		podServiceName == "nginx1" {			
+			serviceArray = append(serviceArray, podServiceName)
+		}
+	}
+	forLoop:for _, podServiceName := range serviceArray {
+		fmt.Println("Pod name: ",podServiceName)
+		switch podServiceName {
+		case "nginx":
+			fmt.Println(1)
+			serviceThreshold = functions.DECODE_THRESHOLD
+			break forLoop
+		case "nginx1":
+			fmt.Println(2)
+			serviceThreshold = functions.DENSITY_THRESHOLD
+			break forLoop
+		}
+	}
+	fmt.Println("Bandwidth: ", bandwidth)
+	fmt.Println("Threshold: ", serviceThreshold)
+	if bandwidth >= serviceThreshold {
 		for _, m := range nodeDiskMetric.Data.Results {
 			// Print metric value for the node
 			fmt.Printf("Node name: %s\n", m.MetricInfo["instance"])

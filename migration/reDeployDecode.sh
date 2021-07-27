@@ -7,8 +7,6 @@ node=`kubectl get pod -n default -o wide | awk 'BEGIN {getline;getline;getline;n
 if [ $node == "server" ]
 then
 	kubectl $action1 -f $path_decode_deployment
-	echo "DELETED"
 	kubectl $action2 -f $path_decode_deployment
-	echo "CREATED"
 fi
 

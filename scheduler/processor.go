@@ -87,7 +87,7 @@ func schedulePod(pod *Pod) error {
 func schedulePods() error {
 	processorLock.Lock()
 	defer processorLock.Unlock()
-	pods, err := getUnscheduledPods()
+	pods, err,_ := getUnscheduledPods()
 	if err != nil {
 		return err
 	}

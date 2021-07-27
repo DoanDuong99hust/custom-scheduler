@@ -1,13 +1,17 @@
 package functions
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 )
 
+const DECODE_THRESHOLD = 0.7
+const DENSITY_THRESHOLD = 0.07
 // Struct for decoded JSON from HTTP response
 type MetricResponse struct {
 	Data Data `json:"data,omitempty"`
@@ -53,4 +57,19 @@ func ConvertStringToFloat(metric MetricResponse) float64 {
 		return convertedData
 	}
 	return 0.0
+}
+
+func InputServiceReqired() (string, float64) {
+	// Add prometheus domain
+	fmt.Print("Insert service's name: ")
+	serviceName, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	serviceName = strings.TrimSuffix(serviceName, "\n")
+
+	fmt.Print("Insert service's threshold: ")
+	raw,_ := bufio.NewReader(os.Stdin).ReadString('\n')
+	raw = strings.TrimSuffix(raw, "\n")
+	rawData := fmt.Sprintf("%v", raw)
+	serviceThreshold, _ := strconv.ParseFloat(rawData, 64)
+
+	return serviceName, serviceThreshold
 }

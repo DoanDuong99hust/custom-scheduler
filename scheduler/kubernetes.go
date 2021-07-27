@@ -150,7 +150,7 @@ func watchUnscheduledPods() (<-chan Pod, <-chan error) {
 	return pods, errc
 }
 
-func getUnscheduledPods() ([]*Pod, error) {
+func getUnscheduledPods() ([]*Pod, error, PodList) {
 	var podList PodList
 	unscheduledPods := make([]*Pod, 0)
 
@@ -171,11 +171,11 @@ func getUnscheduledPods() ([]*Pod, error) {
 
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return unscheduledPods, err
+		return unscheduledPods, err, podList
 	}
 	err = json.NewDecoder(resp.Body).Decode(&podList)
 	if err != nil {
-		return unscheduledPods, err
+		return unscheduledPods, err, podList
 	}
 
 	for _, pod := range podList.Items {
@@ -184,7 +184,7 @@ func getUnscheduledPods() ([]*Pod, error) {
 		}
 	}
 
-	return unscheduledPods, nil
+	return unscheduledPods, nil, podList
 }
 
 func getPods() (*PodList, error) {
