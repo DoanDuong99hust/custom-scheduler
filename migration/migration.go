@@ -36,6 +36,23 @@ func deployment(service string, threshold float64) (float64, float64) {
 	return bandwidth, threshold
 
 }
+
+func reDeploy(service string)  {
+	switch service {
+	case "Decode":
+		_, err := exec.Command("/bin/bash", "./updateDeployment.sh").Output()
+		if err != nil {
+			log.Println("Error:", err)
+		}
+		break
+	case "Density":
+		_, err := exec.Command("/bin/bash", "./updateDeployment1.sh").Output()
+		if err != nil {
+			log.Println("Error:", err)
+		}
+		break
+	}
+}
 func main() {
 
 	serviceName, serviceThreshold := functions.InputServiceReqired()
@@ -55,7 +72,7 @@ func main() {
 				if preBandwidth < threshold {
 					fmt.Println("Previous Bandwidth: ", preBandwidth)
 					fmt.Println("Instant Bandwidth: ", instantBw)
-					deployment(serviceName, serviceThreshold)
+					reDeploy(serviceName)
 					fmt.Println("-------------------")
 				} else {
 					continue
@@ -64,7 +81,7 @@ func main() {
 				if preBandwidth >= threshold {
 					fmt.Println("Previous Bandwidth: ", preBandwidth)
 					fmt.Println("Instant Bandwidth: ", instantBw)
-					deployment(serviceName, serviceThreshold)
+					reDeploy(serviceName)
 					fmt.Println("-------------------")
 				} else {
 					continue
@@ -75,7 +92,7 @@ func main() {
 				if preBandwidth >= threshold {
 					fmt.Println("Previous Bandwidth: ", preBandwidth)
 					fmt.Println("Instant Bandwidth: ", instantBw)
-					deployment(serviceName, serviceThreshold)
+					reDeploy(serviceName)
 					fmt.Println("-------------------")
 				} else {
 					continue
@@ -84,7 +101,7 @@ func main() {
 				if preBandwidth < threshold {
 					fmt.Println("Previous Bandwidth: ", preBandwidth)
 					fmt.Println("Instant Bandwidth: ", instantBw)
-					deployment(serviceName, serviceThreshold)
+					reDeploy(serviceName)
 					fmt.Println("-------------------")
 				} else {
 					continue

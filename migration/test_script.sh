@@ -2,7 +2,7 @@
 
 # xoa container tren cloud
 # kubectl delete service decode
-kubectl delete deployment nginx-deployment
+# kubectl delete deployment nginx-deployment
 
 echo "finish delete deployment"
 # deploy lai duoi edge
