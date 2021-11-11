@@ -9,7 +9,8 @@
 4. Terminal 3: 
    - kubectl create -f deployments/testcustom.yaml 
    - kubectl get pods -o wide (to see which node its been scheduled on; should be the 'best node' identified by the custom scheduler. See logs in Terminal 2 to verify)
-  
+## Implement and modify from
+https://github.com/meeramurali/Custom-Kubernetes-Scheduler
 ## References
 [1]  Kubernetes tutorial. Url: https://www.tutorialspoint.com/kubernetes/index.htm
 
